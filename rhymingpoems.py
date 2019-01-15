@@ -3,10 +3,14 @@ import os
 import markovify
 import config
 import string
-import syllabifyARPA as arpa
+import syllabifyARPA as ARPA
 import re
 
+
 class Poem:
+    """An auto-generated poem with lines based on the text corpus stated in the
+    config file. A rhyme pattern argument can be passed for the constructor."""
+
     def __init__(self, pattern='AABB'):
         self.config = config.Config()
 
@@ -19,6 +23,10 @@ class Poem:
         self.poem = self.generate_poem(pattern)
 
     def generate_poem(self, pattern):
+        """Generate a poem with a rhyme pattern as followed in the argument,
+        e.g 'ABAB'. Upper and lower case letters are differentiated. For lines
+        which should not necessarily rhyme, '0' should be passed, e.g. 'AA0BB'
+        where there third line will not be part of a rhyme pattern."""
 
         lines = [{'index': i, 'rhyme': pattern[i], 'sent': None}
                  for i in range(len(pattern))]
@@ -36,7 +44,7 @@ class Poem:
 
             n_lines = len(group)
             rhyme_attempts = 0
-            max_tries_per_first_sent = 30
+            max_tries_per_sent = 30
             n = 0
             while True:
                 if current == n_lines:
@@ -50,14 +58,16 @@ class Poem:
                     n = 0
                 rhyme_attempts += 1
 
-                if rhyme_attempts == max_tries_per_first_sent:
+                if rhyme_attempts > max_tries_per_sent:
+                    # restart from first sentence in group
                     group[0]['sent'] = self._new_sentence()
                     current = 1
 
                 group[current]['sent'] = self._new_sentence()
 
                 if is_rhyme_pair(group[0]['sent'], group[current]['sent']):
-                    current +=1
+                    rhyme_attempts = 0
+                    current += 1
 
             print()
 
@@ -67,15 +77,17 @@ class Poem:
         final_lines += non_rhymes
         final_lines.sort(key=lambda x: x['index'])
 
-        poem = '\n'.join(line['sent'] for line in final_lines)
-
-        return poem
+        return '\n'.join(line['sent'] for line in final_lines)
 
     def print_poem(self):
 
-        print('*' * 40)
+        length = max(len(line) for line in self.poem.split('\n'))
+
+        print('*' * length)
+        print('-' * length)
         print(self.poem)
-        print('*' * 40)
+        print('-' * length)
+        print('*' * length)
 
     def _new_sentence(self):
 
@@ -86,7 +98,7 @@ class Poem:
             max_overlap_ratio=self.config.markovify_max_overlap_ratio,
             max_overlap_total=self.config.markovify_max_overlap_total
         )
-        if sent == None:
+        if not sent:
             return None
         else:
             return ''.join(c for c in sent if c not in string.punctuation)
@@ -94,7 +106,7 @@ class Poem:
 
 def rhyme_degree(target_word, test_word):
     """Returns a number between 0 and 1 as the degree of rhyming between two
-    words, with 1 being an exact rhyme."""
+    words, with 1 being an exact rhyme and 0 being no similarity at all."""
 
     if test_word in pnc.rhymes(target_word):
         print('\rFound rhyme pair from the pronouncing library:')
@@ -112,11 +124,11 @@ def rhyme_degree(target_word, test_word):
         stress = pnc.stresses(pron)
         last_stress = max([stress.rfind('1'), stress.rfind('2')])
         try:
-            sylls = arpa.syllabifyARPA(pron, return_list=True)
+            sylls = ARPA.syllabifyARPA(pron, return_list=True)
         except ValueError:  # in case the word cannot be syllabified
             return 0
         sylls = sylls[last_stress:]
-        first_onset = re.split(arpa.VOWELS_REGEX, sylls[0])[0]
+        first_onset = re.split(ARPA.VOWELS_REGEX, sylls[0])[0]
         sylls[0] = sylls[0].replace(first_onset, '', 1)
         rhymes[word] = sylls
 
@@ -127,15 +139,14 @@ def rhyme_degree(target_word, test_word):
     matches = 0
     for target_syll, test_syll in zip(rhymes[target_word], rhymes[test_word]):
         target_vowel = [phone for phone in target_syll.split()
-                        if re.match(arpa.VOWELS_REGEX, phone)][0]
+                        if re.match(ARPA.VOWELS_REGEX, phone)][0]
         test_vowel = [phone for phone in test_syll.split()
-                      if re.match(arpa.VOWELS_REGEX, phone)][0]
+                      if re.match(ARPA.VOWELS_REGEX, phone)][0]
         target_clusters = target_syll.split(target_vowel)
         test_clusters = test_syll.split(test_vowel)
         # measure match of syllable onsets
         matches += len(
-            set(target_clusters[0].strip().split()
-            ).intersection(
+            set(target_clusters[0].strip().split()).intersection(
                 set(test_clusters[0].strip().split())
             )
         )
@@ -144,11 +155,10 @@ def rhyme_degree(target_word, test_word):
             matches += 1
             if (target_vowel[-1] in ['1', '2'] and
                 target_vowel[-1] == test_vowel[-1]):  # test for similar stress
-                matches +=1
+                matches += 1
         # measure match of syllable codas
         matches += len(
-            set(target_clusters[1].strip().split()
-            ).intersection(
+            set(target_clusters[1].strip().split()).intersection(
                 set(test_clusters[1].strip().split())
             )
         )
@@ -160,7 +170,6 @@ def rhyme_degree(target_word, test_word):
 
 
 def is_rhyme_pair(target_line, test_line, same_allowed=False, min_degree=0.8):
-    # TODO: rhyme proportion as keyword argument?
     """Return true if the passed lines rhyme."""
 
     if not target_line or target_line == '' or not test_line or test_line == '':
