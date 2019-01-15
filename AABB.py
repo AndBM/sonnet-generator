@@ -6,64 +6,65 @@ import string as str
 
 
 class AABB_poem:
-    def __init__(self):
+    def __init__(self, ):
         self.config = config.Config()
-        self.poem = self.generate_poem()
-
-    def generate_poem(self):
 
         all_text = ""
         for file in os.listdir(self.config.markovify_input_dir):
             with open(self.config.markovify_input_dir + file) as f:
                 all_text += f.read()
-        text_model = markovify.Text(all_text)
+        self.text_model = markovify.Text(all_text)
 
-        # TODO: consider a better way of attempting to find rhyming lines
-        # maybe:
+        self.poem = self.generate_poem()
+
+    def generate_poem(self):
         line_pairs = {'A': None, 'B': None}
 
         for pair in line_pairs:
-            print("Making line pair " + pair)
+            print('Making line pair ' + pair)
 
-            print(".", end='')
-            first = text_model.make_short_sentence(
-                (self.config.poem_first_syl_count
-                 * self.config.poem_avg_char_per_syl),
-                tries=100,
-                max_overlap_ratio=self.config.markovify_max_overlap_ratio,
-                max_overlap_total=self.config.markovify_max_overlap_total
-            )
-            first = ''.join(c for c in first if c not in str.punctuation)
-
-            text_model.make_sentence()
-            second = None
+            first = self._new_sentence()
+            second = self._new_sentence()
             rhyme_attempts = 0
-            max_attempts = 100
+            max_attempts = 10000
             while (not is_rhyme_pair(first, second) and
                    rhyme_attempts < max_attempts):
-                print(".", end='')
+                n = rhyme_attempts % 25
+                print('\r' + n * '.' + (10 - n) * ' ', end='')
+                rhyme_attempts += 1
 
-                second = text_model.make_short_sentence(
-                    (self.config.poem_second_syl_count
-                     * self.config.poem_avg_char_per_syl),
-                    tries=100,
-                    max_overlap_ratio=self.config.markovify_max_overlap_ratio,
-                    max_overlap_total=self.config.markovify_max_overlap_total
-                )
-                second = ''.join(c for c in second if c not in str.punctuation)
+                if rhyme_attempts % 100 == 0:
+                    first = self._new_sentence()
+
+                second = self._new_sentence()
 
             line_pairs[pair] = '\n'.join([first, second])
 
+            print()
+
         poem = '\n'.join(line_pairs.values())
 
-        print("")
-        print("***********************")
-        print("-----------------------")
-        print(poem)
-        print("-----------------------")
-        print("***********************")
-
         return poem
+
+    def print_poem(self):
+
+        print('*' * 50)
+        print(self.poem)
+        print('*' * 50)
+
+    def _new_sentence(self):
+
+        sent = self.text_model.make_short_sentence(
+            (self.config.poem_first_syl_count
+             * self.config.poem_avg_char_per_syl),
+            tries=100,
+            max_overlap_ratio=self.config.markovify_max_overlap_ratio,
+            max_overlap_total=self.config.markovify_max_overlap_total
+        )
+        if not sent:
+            return None
+        else:
+            return ''.join(c for c in sent if c not in str.punctuation)
 
 
 def rhyme_degree(target_word, test_word):
@@ -73,27 +74,19 @@ def rhyme_degree(target_word, test_word):
     if test_word in pnc.rhymes(target_word):
         return 1
 
-    # test with just the rhyming part
+    # test phone for phone how well the words match
     try:
-        target_pron = pnc.phones_for_word(target_word)
-        target_rhyme = pnc.rhyming_part(target_pron[0])
-    except IndexError:  # in case the word is not in the dictionary
-        print('Warning: ', target_word, ' is not in the dictionary.')
-        return 0
-    if test_word in pnc.search(target_rhyme):
-        return 1
-
-    # test phone for phone how well the words match in their rhyming parts
-    try:
-        test_pron = pnc.phones_for_word(test_word)
-        test_rhyme = pnc.rhyming_part(test_pron[0])
-    except IndexError:  # in case the word is not in the dictionary
-        print('Warning: ', test_word, ' is not in the dictionary.')
+        target_pron = pnc.phones_for_word(target_word)[0].split()
+        test_pron = pnc.phones_for_word(test_word)[0].split()
+    except IndexError:  # in case one of the words is not in the dictionary
         return 0
     phone_count = 0
     matches = 0
     # TODO: take into account consonant clusters and the weight of stressed syllables
-    for target, test in zip(reversed(target_rhyme), reversed(test_rhyme)):
+    # TODO: use syllabifyARPA
+    reverse_target = reversed(target_pron)
+    reverse_test = reversed(test_pron)
+    for target, test in zip(reverse_target, reverse_test):
         if target == test:
             matches +=1
         phone_count += 1
@@ -103,7 +96,7 @@ def rhyme_degree(target_word, test_word):
         return matches/phone_count
 
 
-def is_rhyme_pair(target_line, test_line, minimum_sylls=3):
+def is_rhyme_pair(target_line, test_line, same_allowed=False, min_degree=0.7):
     # TODO: rhyme proportion as keyword argument?
     """Return true if the passed lines rhyme."""
 
@@ -113,11 +106,16 @@ def is_rhyme_pair(target_line, test_line, minimum_sylls=3):
     target_last = target_line.split()[-1]
     test_last = test_line.split()[-1]
 
+    if target_last.lower() == test_last.lower() and not same_allowed:
+        return False
+
     # TODO: take into account short words
-    if rhyme_degree(target_last, test_last) > 0.8:
+
+    if rhyme_degree(target_last, test_last) > min_degree:
         return True
     else:
         return False
 
 
 poem = AABB_poem()
+poem.print_poem()
