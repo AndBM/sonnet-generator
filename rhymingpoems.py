@@ -6,13 +6,11 @@ import string
 import syllabifyARPA as arpa
 import re
 
-VOWELS = ['AA', 'AH', 'AW', 'EH', 'EY', 'IH', 'IY', 'OW', 'OY', 'UH', 'UW']
-
 class Poem:
     def __init__(self, pattern='AABB'):
         self.config = config.Config()
 
-        all_text = ""
+        all_text = ''
         for file in os.listdir(self.config.markovify_input_dir):
             with open(self.config.markovify_input_dir + file) as f:
                 all_text += f.read()
@@ -21,36 +19,55 @@ class Poem:
         self.poem = self.generate_poem(pattern)
 
     def generate_poem(self, pattern):
-        line_pairings = {'A': None, 'B': None}
 
-        for pair in line_pairings:
-            print('Making line pair ' + pair + '. Looking for rhymes.')
+        lines = [{'index': i, 'rhyme': pattern[i], 'sent': None}
+                 for i in range(len(pattern))]
+        line_pairings = {c: [] for c in pattern if not c == '0'}
+        for rhyme in line_pairings:
+            line_pairings[rhyme] = [l for l in lines if l['rhyme'] == rhyme]
+        non_rhymes = [l for l in lines if l['rhyme'] == '0']
+        final_lines = []
 
-            first = self._new_sentence()
-            second = self._new_sentence()
+        for rhyme, group in zip(line_pairings, line_pairings.values()):
+            print('Looking for rhymes for ' + rhyme + ' group.')
+
+            group[0]['sent'] = self._new_sentence()
+            current = 1
+
+            n_lines = len(group)
             rhyme_attempts = 0
-            max_attempts = 10000
+            max_tries_per_first_sent = 30
             n = 0
-            while (not is_rhyme_pair(first, second) and
-                   rhyme_attempts < max_attempts):
+            while True:
+                if current == n_lines:
+                    final_lines += group
+                    break  # move on to next rhyme group
+
                 if rhyme_attempts % 50 == 0:
                     n += 1
                     print('\r' + n * '.', end='')
                 if n == 20:
                     n = 0
-
                 rhyme_attempts += 1
 
-                if rhyme_attempts % 50 == 0:
-                    first = self._new_sentence()
+                if rhyme_attempts == max_tries_per_first_sent:
+                    group[0]['sent'] = self._new_sentence()
+                    current = 1
 
-                second = self._new_sentence()
+                group[current]['sent'] = self._new_sentence()
 
-            line_pairs[pair] = '\n'.join([first, second])
+                if is_rhyme_pair(group[0]['sent'], group[current]['sent']):
+                    current +=1
 
             print()
 
-        poem = '\n'.join(line_pairs.values())
+        for line in non_rhymes:
+            line['sent'] = self._new_sentence()
+
+        final_lines += non_rhymes
+        final_lines.sort(key=lambda x: x['index'])
+
+        poem = '\n'.join(line['sent'] for line in final_lines)
 
         return poem
 
@@ -65,72 +82,7 @@ class Poem:
         sent = self.text_model.make_short_sentence(
             (self.config.poem_first_syl_count
              * self.config.poem_avg_char_per_syl),
-            max_overlap_ratio=self.config.markovify_max_overlap_ratio,
-            max_overlap_total=self.config.markovify_max_overlap_total
-        )
-        if sent == None:
-            return None
-        else:
-            return ''.join(c for c in sent if c not in string.punctuation)
-
-
-class AaBbPoem:
-    def __init__(self):
-        self.config = config.Config()
-
-        all_text = ""
-        for file in os.listdir(self.config.markovify_input_dir):
-            with open(self.config.markovify_input_dir + file) as f:
-                all_text += f.read()
-        self.text_model = markovify.Text(all_text)
-
-        self.poem = self.generate_poem()
-
-    def generate_poem(self):
-        line_pairs = {'A': None, 'B': None}
-
-        for pair in line_pairs:
-            print('Making line pair ' + pair + '. Looking for rhymes.')
-
-            first = self._new_sentence()
-            second = self._new_sentence()
-            rhyme_attempts = 0
-            max_attempts = 10000
-            n = 0
-            while (not is_rhyme_pair(first, second) and
-                   rhyme_attempts < max_attempts):
-                if rhyme_attempts % 50 == 0:
-                    n += 1
-                    print('\r' + n * '.', end='')
-                if n == 20:
-                    n = 0
-
-                rhyme_attempts += 1
-
-                if rhyme_attempts % 50 == 0:
-                    first = self._new_sentence()
-
-                second = self._new_sentence()
-
-            line_pairs[pair] = '\n'.join([first, second])
-
-            print()
-
-        poem = '\n'.join(line_pairs.values())
-
-        return poem
-
-    def print_poem(self):
-
-        print('*' * 40)
-        print(self.poem)
-        print('*' * 40)
-
-    def _new_sentence(self):
-
-        sent = self.text_model.make_short_sentence(
-            (self.config.poem_first_syl_count
-             * self.config.poem_avg_char_per_syl),
+            tries=100,
             max_overlap_ratio=self.config.markovify_max_overlap_ratio,
             max_overlap_total=self.config.markovify_max_overlap_total
         )
@@ -145,7 +97,7 @@ def rhyme_degree(target_word, test_word):
     words, with 1 being an exact rhyme."""
 
     if test_word in pnc.rhymes(target_word):
-        print('\rFound rhyme pair from the pronouncing library.')
+        print('\rFound rhyme pair from the pronouncing library:')
         print(target_word, 'and', test_word)
         return 1
 
@@ -182,8 +134,7 @@ def rhyme_degree(target_word, test_word):
         test_clusters = test_syll.split(test_vowel)
         # measure match of syllable onsets
         matches += len(
-            set(
-                target_clusters[0].strip().split()
+            set(target_clusters[0].strip().split()
             ).intersection(
                 set(test_clusters[0].strip().split())
             )
@@ -196,8 +147,7 @@ def rhyme_degree(target_word, test_word):
                 matches +=1
         # measure match of syllable codas
         matches += len(
-            set(
-                target_clusters[1].strip().split()
+            set(target_clusters[1].strip().split()
             ).intersection(
                 set(test_clusters[1].strip().split())
             )
@@ -209,7 +159,7 @@ def rhyme_degree(target_word, test_word):
     return degree
 
 
-def is_rhyme_pair(target_line, test_line, same_allowed=False, min_degree=0.9):
+def is_rhyme_pair(target_line, test_line, same_allowed=False, min_degree=0.8):
     # TODO: rhyme proportion as keyword argument?
     """Return true if the passed lines rhyme."""
 
@@ -230,5 +180,5 @@ def is_rhyme_pair(target_line, test_line, same_allowed=False, min_degree=0.9):
         return False
 
 
-poem = AaBbPoem()
+poem = Poem('ABABCC0')
 poem.print_poem()
