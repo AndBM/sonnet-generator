@@ -28,6 +28,8 @@ class Poem:
         which should not necessarily rhyme, '0' should be passed, e.g. 'AA0BB'
         where there third line will not be part of a rhyme pattern."""
 
+        # Set up basic objects of the poem
+        # Sent is short for sentence
         lines = [{'index': i, 'rhyme': pattern[i], 'sent': None}
                  for i in range(len(pattern))]
         line_pairings = {c: [] for c in pattern if not c == '0'}
@@ -36,44 +38,63 @@ class Poem:
         non_rhymes = [l for l in lines if l['rhyme'] == '0']
         final_lines = []
 
+        # Find rhymes for each group
         for rhyme, group in zip(line_pairings, line_pairings.values()):
             print('Looking for rhymes for ' + rhyme + ' group.')
 
+            # Create first sentence in the group
             group[0]['sent'] = self._new_sentence()
             current = 1
 
+            # Prepare iteration to find rhymes
             n_lines = len(group)
             rhyme_attempts = 0
             max_tries_per_sent = 30
-            n = 0
+            n = 0 # Just for animation
+
+            # INFINITE LOOP WOOO LET'S GO
             while True:
                 if current == n_lines:
+                    # If we have all the rhymes needed, pack into poem and move on to the next rhyme group
                     final_lines += group
-                    break  # move on to next rhyme group
+                    break
 
                 if rhyme_attempts % 50 == 0:
+                    # Fancy animation
                     n += 1
                     print('\r' + n * '.', end='')
                 if n == 20:
                     n = 0
-                rhyme_attempts += 1
 
+                rhyme_attempts += 1
                 if rhyme_attempts > max_tries_per_sent:
-                    # restart from first sentence in group
+                    # Restart from first sentence in group
                     group[0]['sent'] = self._new_sentence()
                     current = 1
 
+                # Generate next line
                 group[current]['sent'] = self._new_sentence()
 
+                # Flexibly check if the line rhymes
+                #TODO Compare here if rhyme has already been used.
                 if is_rhyme_pair(group[0]['sent'], group[current]['sent']):
-                    rhyme_attempts = 0
-                    current += 1
+                    # Rhyme found! Ensure that it is different from other groups
+                    already_used = 0
+                    for prev_sent in final_lines:
+                        if is_rhyme_pair(prev_sent['sent'], group[current]['sent']):
+                            already_used = 1
+                            print("Rhyme already used, trying something else.")
+                    if already_used == 0:
+                        rhyme_attempts = 0
+                        current += 1
 
             print()
 
+        # Put whatever on the non-rhyming line
         for line in non_rhymes:
             line['sent'] = self._new_sentence()
 
+        # Sort the rhymes into the desired structure
         final_lines += non_rhymes
         final_lines.sort(key=lambda x: x['index'])
 
@@ -90,6 +111,7 @@ class Poem:
         print('*' * length)
 
     def _new_sentence(self):
+        #TODO Make the syllable count an argument
 
         sent = self.text_model.make_short_sentence(
             (self.config.poem_first_syl_count
@@ -189,5 +211,5 @@ def is_rhyme_pair(target_line, test_line, same_allowed=False, min_degree=0.8):
         return False
 
 
-poem = Poem('ABABCC0')
+poem = Poem('AABBACCDDC')
 poem.print_poem()
