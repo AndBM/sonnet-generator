@@ -16,7 +16,10 @@ class Poem:
 
         all_text = ''
         for file in os.listdir(self.config.markovify_input_dir):
-            with open(self.config.markovify_input_dir + file) as f:
+            if os.path.isdir(file):  # skip folders
+                continue
+            with open(self.config.markovify_input_dir + file,
+                      encoding='utf-8') as f:
                 all_text += f.read()
         self.text_model = markovify.Text(all_text)
 
@@ -30,8 +33,8 @@ class Poem:
 
         # Set up basic objects of the poem
         # Sent is short for sentence
-        lines = [{'index': i, 'rhyme': pattern[i], 'sent': None}
-                 for i in range(len(pattern))]
+        lines = [{'index': i, 'rhyme': rhyme, 'sent': None}
+                 for i, rhyme in enumerate(pattern)]
         line_pairings = {c: [] for c in pattern if not c == '0'}
         for rhyme in line_pairings:
             line_pairings[rhyme] = [l for l in lines if l['rhyme'] == rhyme]
@@ -50,21 +53,22 @@ class Poem:
             n_lines = len(group)
             rhyme_attempts = 0
             max_tries_per_sent = 30
-            n = 0 # Just for animation
+            n_animation_dots = 0  # Just for animation
 
             # INFINITE LOOP WOOO LET'S GO
             while True:
                 if current == n_lines:
-                    # If we have all the rhymes needed, pack into poem and move on to the next rhyme group
+                    # If we have all the rhymes needed, pack into poem
                     final_lines += group
+                    # and move on to the next rhyme group
                     break
 
                 if rhyme_attempts % 50 == 0:
                     # Fancy animation
-                    n += 1
-                    print('\r' + n * '.', end='')
-                if n == 20:
-                    n = 0
+                    n_animation_dots += 1
+                    print('\r' + n_animation_dots * '.', end='')
+                if n_animation_dots == 20:
+                    n_animation_dots = 0
 
                 rhyme_attempts += 1
                 if rhyme_attempts > max_tries_per_sent:
@@ -76,7 +80,7 @@ class Poem:
                 group[current]['sent'] = self._new_sentence()
 
                 # Flexibly check if the line rhymes
-                #TODO Compare here if rhyme has already been used.
+                # TODO Compare here if rhyme has already been used.
                 if is_rhyme_pair(group[0]['sent'], group[current]['sent']):
                     # Rhyme found! Ensure that it is different from other groups
                     already_used = 0
@@ -88,9 +92,10 @@ class Poem:
                         rhyme_attempts = 0
                         current += 1
 
-            print()
+            print()  # animation on new line
 
         # Put whatever on the non-rhyming line
+        # TODO: make sure they don't accidentally rhyme with any rhyme pairs
         for line in non_rhymes:
             line['sent'] = self._new_sentence()
 
@@ -139,6 +144,7 @@ def rhyme_degree(target_word, test_word):
     rhymes = {target_word: None, test_word: None}
     for word in rhymes:
         try:
+            # get pronounciation for word
             pron = pnc.phones_for_word(word)[0]
         except IndexError:  # in case one of the words is not in the dictionary
             return 0
@@ -175,8 +181,9 @@ def rhyme_degree(target_word, test_word):
         # measure match of vowels
         if target_vowel[:2] == test_vowel[:2]:  # test for the vowel itself
             matches += 1
-            if (target_vowel[-1] in ['1', '2'] and
-                target_vowel[-1] == test_vowel[-1]):  # test for similar stress
+            # test for similar stress
+            if (target_vowel[-1] in ['1', '2']
+                    and target_vowel[-1] == test_vowel[-1]):
                 matches += 1
         # measure match of syllable codas
         matches += len(
@@ -194,16 +201,20 @@ def rhyme_degree(target_word, test_word):
 def is_rhyme_pair(target_line, test_line, same_allowed=False, min_degree=0.8):
     """Return true if the passed lines rhyme."""
 
-    if not target_line or target_line == '' or not test_line or test_line == '':
+    # avoid later problems from empty or None lines
+    if (not target_line or target_line == ''
+            or not test_line or test_line == ''):
         return False
 
+    # get the last words from the lines
     target_last = target_line.split()[-1]
     test_last = test_line.split()[-1]
 
     if target_last.lower() == test_last.lower() and not same_allowed:
         return False
 
-    # TODO: take into account short words
+    # TODO: take short words into account: combine short words and see if they
+    # can constitute one phonological word, i.e. one stress unit
     degree = rhyme_degree(target_last, test_last)
     if degree > min_degree:
         return True
