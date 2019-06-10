@@ -11,7 +11,7 @@ class Poem:
     """An auto-generated poem with lines based on the text corpus stated in the
     config file. A rhyme pattern argument can be passed for the constructor."""
 
-    def __init__(self, pattern='AABB'):
+    def __init__(self, pattern='A7A7B7B7'):
         self.config = config.Config()
 
         all_text = ''
@@ -23,27 +23,34 @@ class Poem:
         self.poem = self.generate_poem(pattern)
 
     def generate_poem(self, pattern):
-        """Generate a poem with a rhyme pattern as followed in the argument,
-        e.g 'ABAB'. Upper and lower case letters are differentiated. For lines
-        which should not necessarily rhyme, '0' should be passed, e.g. 'AA0BB'
+        """Generate a poem with a rhyme and syllable pattern as followed in the argument,
+        e.g 'ABAB5757'. Upper and lower case letters are differentiated. For lines
+        which should not necessarily rhyme, '0' should be passed, e.g. 'AA0BB55755'
         where there third line will not be part of a rhyme pattern."""
 
-        # Set up basic objects of the poem
-        # Sent is short for sentence
-        lines = [{'index': i, 'rhyme': pattern[i], 'sent': None}
-                 for i in range(len(pattern))]
-        line_pairings = {c: [] for c in pattern if not c == '0'}
+        # Ensure even number of input
+        assert len(pattern) % 2 == 0, "Number of input characters must be even!"
+        line_num = int(len(pattern)/2)
+        print(range(line_num))
+
+        # Set up basic objects of the poem. Syntax:
+        # Line ( line number, rhyme group, syllables, sentence )
+        lines = [{'index': i, 'rhyme': pattern[i], 'syls': pattern[line_num+i], 'sent': None}
+                 for i in range(line_num)]
+        line_pairings = {c: [] for c in pattern[0:line_num-1] if not c == '0'}
         for rhyme in line_pairings:
             line_pairings[rhyme] = [l for l in lines if l['rhyme'] == rhyme]
         non_rhymes = [l for l in lines if l['rhyme'] == '0']
         final_lines = []
 
-        # Find rhymes for each group
+        print(lines)
+        print(line_pairings)
+
+        # Find rhymes for each group. Rhyme is letter (A), group is the object
         for rhyme, group in zip(line_pairings, line_pairings.values()):
             print('Looking for rhymes for ' + rhyme + ' group.')
-
             # Create first sentence in the group
-            group[0]['sent'] = self._new_sentence()
+            group[0]['sent'] = self._new_sentence(group[0]['syls'])
             current = 1
 
             # Prepare iteration to find rhymes
@@ -62,29 +69,28 @@ class Poem:
                 if rhyme_attempts % 50 == 0:
                     # Fancy animation
                     n += 1
-                    print('\r' + n * '.', end='')
+                    #print('\r' + n * '.', end='')
                 if n == 20:
                     n = 0
 
                 rhyme_attempts += 1
                 if rhyme_attempts > max_tries_per_sent:
                     # Restart from first sentence in group
-                    group[0]['sent'] = self._new_sentence()
+                    group[0]['sent'] = self._new_sentence(group[0]['syls'])
                     current = 1
 
                 # Generate next line
-                group[current]['sent'] = self._new_sentence()
+                group[current]['sent'] = self._new_sentence(group[0]['syls'])
 
                 # Flexibly check if the line rhymes
-                #TODO Compare here if rhyme has already been used.
                 if is_rhyme_pair(group[0]['sent'], group[current]['sent']):
                     # Rhyme found! Ensure that it is different from other groups
-                    already_used = 0
+                    already_used = False
                     for prev_sent in final_lines:
                         if is_rhyme_pair(prev_sent['sent'], group[current]['sent']):
-                            already_used = 1
+                            already_used = True
                             print("Rhyme already used, trying something else.")
-                    if already_used == 0:
+                    if not already_used:
                         rhyme_attempts = 0
                         current += 1
 
@@ -92,7 +98,7 @@ class Poem:
 
         # Put whatever on the non-rhyming line
         for line in non_rhymes:
-            line['sent'] = self._new_sentence()
+            line['sent'] = self._new_sentence(group[0]['syls'])
 
         # Sort the rhymes into the desired structure
         final_lines += non_rhymes
@@ -110,17 +116,50 @@ class Poem:
         print('-' * length)
         print('*' * length)
 
-    def _new_sentence(self):
-        #TODO Make the syllable count an argument
+    def _new_sentence2(self,syls):
+        syls = int(syls)
+        sent = None
+        phones = []
+        while sent == None or sum([pnc.syllable_count(p) for p in phones]) != syls:
+            print(sent)
+            print(sum([pnc.syllable_count(p) for p in phones])-syls)
+            sent = self.text_model.make_short_sentence(
+                syls * self.config.poem_avg_char_per_syl,
+                tries=100,
+                max_overlap_ratio=self.config.markovify_max_overlap_ratio,
+                max_overlap_total=self.config.markovify_max_overlap_total
+            )
+            if sent == None:
+                continue
 
+            sentNoPunctuation = sent[0:-1]
+            try:
+                phones = [pnc.phones_for_word(p)[0] for p in sentNoPunctuation.split()]
+            except IndexError:
+                # Word not found in dictionary
+                phones = []
+
+        return ''.join(c for c in sent if c not in string.punctuation)
+
+    def _new_sentence(self,syls):
+        #TODO Make markovify actually make the right number of syllables
+        # Implement syllable tester from ababGenerator
+        syls = int(syls)
         sent = self.text_model.make_short_sentence(
-            (self.config.poem_first_syl_count
-             * self.config.poem_avg_char_per_syl),
+            syls * self.config.poem_avg_char_per_syl,
             tries=100,
             max_overlap_ratio=self.config.markovify_max_overlap_ratio,
             max_overlap_total=self.config.markovify_max_overlap_total
         )
-        if not sent:
+
+        sentNoPunctuation = sent[0:-1]
+        try:
+            phones = [pnc.phones_for_word(p)[0] for p in sentNoPunctuation.split()]
+        except IndexError:
+            # Word not found in dictionary
+            phones = []
+
+        if sum([pnc.syllable_count(p) for p in phones]) != syls or not sent:
             return None
         else:
             return ''.join(c for c in sent if c not in string.punctuation)
@@ -191,7 +230,7 @@ def rhyme_degree(target_word, test_word):
     return degree
 
 
-def is_rhyme_pair(target_line, test_line, same_allowed=False, min_degree=0.8):
+def is_rhyme_pair(target_line, test_line, same_allowed=False, min_degree=0.7):
     """Return true if the passed lines rhyme."""
 
     if not target_line or target_line == '' or not test_line or test_line == '':
@@ -211,5 +250,5 @@ def is_rhyme_pair(target_line, test_line, same_allowed=False, min_degree=0.8):
         return False
 
 
-poem = Poem('AABBACCDDC')
+poem = Poem('ABAB5757')
 poem.print_poem()
