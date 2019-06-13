@@ -152,6 +152,10 @@ class Poem:
             max_overlap_total=self.config.markovify_max_overlap_total
         )
 
+        if sent == None:
+            return None
+            
+        # Might be double work checking for punctuation
         sentNoPunctuation = sent[0:-1]
         try:
             phones = [pnc.phones_for_word(p)[0] for p in sentNoPunctuation.split()]
