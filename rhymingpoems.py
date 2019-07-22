@@ -234,7 +234,7 @@ def rhyme_degree(target_word, test_word):
     return degree
 
 
-def is_rhyme_pair(target_line, test_line, same_allowed=False, min_degree=0.7):
+def is_rhyme_pair(target_line, test_line, same_allowed=False, min_degree=0.8):
     """Return true if the passed lines rhyme."""
 
     if not target_line or target_line == '' or not test_line or test_line == '':
