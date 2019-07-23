@@ -6,6 +6,9 @@ import string
 import syllabifyARPA as ARPA
 import re
 
+#Strategy: Create one master sonnet. Then create all 14 other sonnets.
+#TODO: ALlow poem generator to have predefined first and last lines
+#TODO: Allow lines with more than 9 syllables
 
 class Poem:
     """An auto-generated poem with lines based on the text corpus stated in the
@@ -160,7 +163,7 @@ class Poem:
 
         if sent == None:
             return None
-            
+
         # Might be double work checking for punctuation
         sentNoPunctuation = sent[0:-1]
         try:
@@ -266,5 +269,5 @@ def is_rhyme_pair(target_line, test_line, same_allowed=False, min_degree=0.7):
         return False
 
 
-poem = Poem('ABAB5757')
+poem = Poem('ABABCDCDEFEGFG76767676767676')
 poem.print_poem()
