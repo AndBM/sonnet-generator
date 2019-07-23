@@ -10,7 +10,7 @@ class Config(object):
 
         # Poem
         self.poem_avg_char_per_syl = 6 #pronouncing can calculate this accurately for each text
-        self.poem_first_syl_count = 5
+        self.poem_first_syl_count = 6
         self.poem_second_syl_count = 7
 
         self.max_rhyme_attempts = 1000

@@ -88,7 +88,7 @@ class ABAB_poem:
                     continue
                 # If this fails, it must be the rhyme.
                 rhymeAttempts += 1
-                print(rhymeAttempts)
+                #print(rhymeAttempts)
 
             # Check if we actually made a rhyme
             if rhymeAttempts < self.config.max_rhyme_attempts:
