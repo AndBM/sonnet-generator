@@ -10,11 +10,30 @@ import re
 #TODO: ALlow poem generator to have predefined first and last lines
 #TODO: Allow lines with more than 9 syllables
 
+class Crown_generator:
+    """Generate a crown of sonnets. If the base poem has n lines, there will be
+    n sonnets and one master sonnet"""
+
+    def __init__(self, base_pattern)
+
+    # Generate master sonnet
+
+    # Check number of lines
+
+    # Generate that many sonnets, using the lines from the master sonnet as
+    # first and last lines
+
+    # Maybe print the sonnet ring?
+
+
+    poem = Poem('ABABCDCDEFEGFG76767676767676')
+    poem.print_poem()
+
 class Poem:
     """An auto-generated poem with lines based on the text corpus stated in the
     config file. A rhyme pattern argument can be passed for the constructor."""
 
-    def __init__(self, pattern='A7A7B7B7'):
+    def __init__(self, pattern='A7A7B7B7', *argv):
         self.config = config.Config()
 
         all_text = ''
@@ -25,10 +44,12 @@ class Poem:
                       encoding='utf-8') as f:
                 all_text += f.read()
         self.text_model = markovify.Text(all_text)
-
+        self.first_line = argv[0]
+        self.last_line = argv[1]
+        # Now pass to the poem
         self.poem = self.generate_poem(pattern)
 
-    def generate_poem(self, pattern):
+    def generate_poem(self, pattern, first_line, last_line):
         """Generate a poem with a rhyme and syllable pattern as followed in the argument,
         e.g 'ABAB5757'. Upper and lower case letters are differentiated. For lines
         which should not necessarily rhyme, '0' should be passed, e.g. 'AA0BB55755'
@@ -37,7 +58,6 @@ class Poem:
         # Ensure even number of input
         assert len(pattern) % 2 == 0, "Number of input characters must be even!"
         line_num = int(len(pattern)/2)
-        print(range(line_num))
 
         # Set up basic objects of the poem. Syntax:
         # Line ( line number, rhyme group, syllables, sentence )
@@ -49,9 +69,6 @@ class Poem:
             line_pairings[rhyme] = [l for l in lines if l['rhyme'] == rhyme]
         non_rhymes = [l for l in lines if l['rhyme'] == '0']
         final_lines = []
-
-        print(lines)
-        print(line_pairings)
 
         # Find rhymes for each group. Rhyme is letter (A), group is the object
         for rhyme, group in zip(line_pairings, line_pairings.values()):
@@ -151,8 +168,6 @@ class Poem:
         return ''.join(c for c in sent if c not in string.punctuation)
 
     def _new_sentence(self,syls):
-        #TODO Make markovify actually make the right number of syllables
-        # Implement syllable tester from ababGenerator
         syls = int(syls)
         sent = self.text_model.make_short_sentence(
             syls * self.config.poem_avg_char_per_syl,
@@ -267,7 +282,3 @@ def is_rhyme_pair(target_line, test_line, same_allowed=False, min_degree=0.7):
         return True
     else:
         return False
-
-
-poem = Poem('ABABCDCDEFEGFG76767676767676')
-poem.print_poem()
