@@ -9,25 +9,26 @@ import re
 #Strategy: Create one master sonnet. Then create all 14 other sonnets.
 #TODO: ALlow poem generator to have predefined first and last lines
 #TODO: Allow lines with more than 9 syllables
-
-class Crown_generator:
-    """Generate a crown of sonnets. If the base poem has n lines, there will be
-    n sonnets and one master sonnet"""
-
-    def __init__(self, base_pattern)
-
-    # Generate master sonnet
-
-    # Check number of lines
-
-    # Generate that many sonnets, using the lines from the master sonnet as
-    # first and last lines
-
-    # Maybe print the sonnet ring?
-
-
-    poem = Poem('ABABCDCDEFEGFG76767676767676')
-    poem.print_poem()
+#
+# class Crown_generator:
+#     """Generate a crown of sonnets. If the base poem has n lines, there will be
+#     n sonnets and one master sonnet"""
+#
+#     def __init__(self, base_pattern)
+#
+#     # Generate master sonnet
+#
+#     # Check number of lines
+#
+#     # Generate that many sonnets, using the lines from the master sonnet as
+#     # first and last lines
+#   for n
+#
+#     # Maybe print the sonnet ring?
+#
+#
+#     poem = Poem('ABABCDCDEFEGFG76767676767676')
+#     poem.print_poem()
 
 class Poem:
     """An auto-generated poem with lines based on the text corpus stated in the
@@ -44,12 +45,12 @@ class Poem:
                       encoding='utf-8') as f:
                 all_text += f.read()
         self.text_model = markovify.Text(all_text)
-        self.first_line = argv[0]
-        self.last_line = argv[1]
+        #self.first_line = argv[0]
+        #self.last_line = argv[1]
         # Now pass to the poem
         self.poem = self.generate_poem(pattern)
 
-    def generate_poem(self, pattern, first_line, last_line):
+    def generate_poem(self, pattern):#, first_line, last_line):
         """Generate a poem with a rhyme and syllable pattern as followed in the argument,
         e.g 'ABAB5757'. Upper and lower case letters are differentiated. For lines
         which should not necessarily rhyme, '0' should be passed, e.g. 'AA0BB55755'
@@ -95,8 +96,8 @@ class Poem:
                     # Fancy animation
                     n_animation_dots += 1
                     print('\r' + n_animation_dots * '.', end='')
-                  if n_animation_dots == 20:
-                      n_animation_dots = 0
+                    if n_animation_dots == 20:
+                        n_animation_dots = 0
 
                 rhyme_attempts += 1
                 if rhyme_attempts > max_tries_per_sent:
@@ -282,3 +283,7 @@ def is_rhyme_pair(target_line, test_line, same_allowed=False, min_degree=0.7):
         return True
     else:
         return False
+
+#poem = Poem('ABABCDCDEFEGFG76767676767676')
+poem = Poem('ABAB7676')
+poem.print_poem()
