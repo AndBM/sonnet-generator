@@ -93,14 +93,16 @@ class Poem:
                     break
 
                 if rhyme_attempts % 50 == 0:
+                    print('\r' + str(rhyme_attempts) )
                     # Fancy animation
-                    n_animation_dots += 1
-                    print('\r' + n_animation_dots * '.', end='')
-                    if n_animation_dots == 20:
-                        n_animation_dots = 0
+                    #n_animation_dots += 1
+                    #print('\r' + n_animation_dots * '.', end='')
+                    #if n_animation_dots == 20:
+                    #    n_animation_dots = 0
 
                 rhyme_attempts += 1
                 if rhyme_attempts > max_tries_per_sent:
+                    print("Tried more than max times, restarting group")
                     # Restart from first sentence in group
                     group[0]['sent'] = self._new_sentence(group[0]['syls'])
                     current = 1
@@ -110,6 +112,7 @@ class Poem:
 
                 # Flexibly check if the line rhymes
                 if is_rhyme_pair(group[0]['sent'], group[current]['sent']):
+                    print("Rhyme found!")
                     # Rhyme found! Ensure that it is different from other groups
                     already_used = False
                     for prev_sent in final_lines:
