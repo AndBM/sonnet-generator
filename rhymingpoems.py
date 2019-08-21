@@ -36,6 +36,7 @@ class Poem:
 
     def __init__(self, pattern='A7A7B7B7', *argv):
         self.config = config.Config()
+        max_rhyme_attempts = self.config.max_rhyme_attempts
 
         all_text = ''
         for file in os.listdir(self.config.markovify_input_dir):
@@ -48,9 +49,9 @@ class Poem:
         #self.first_line = argv[0]
         #self.last_line = argv[1]
         # Now pass to the poem
-        self.poem = self.generate_poem(pattern)
+        self.poem = self.generate_poem(pattern, max_rhyme_attempts)
 
-    def generate_poem(self, pattern):#, first_line, last_line):
+    def generate_poem(self, pattern, max_rhyme_attempts):#, first_line, last_line):
         """Generate a poem with a rhyme and syllable pattern as followed in the argument,
         e.g 'ABAB5757'. Upper and lower case letters are differentiated. For lines
         which should not necessarily rhyme, '0' should be passed, e.g. 'AA0BB55755'
@@ -75,13 +76,17 @@ class Poem:
         for rhyme, group in zip(line_pairings, line_pairings.values()):
             print('Looking for rhymes for ' + rhyme + ' group.')
             # Create first sentence in the group
+
             group[0]['sent'] = self._new_sentence(group[0]['syls'])
+            while group[0]['sent'] == None:
+                group[0]['sent'] = self._new_sentence(group[0]['syls'])
+
             current = 1
 
             # Prepare iteration to find rhymes
             n_lines = len(group)
             rhyme_attempts = 0
-            max_tries_per_sent = 30
+            max_tries_per_sent = max_rhyme_attempts
             n_animation_dots = 0  # Just for animation
 
             # INFINITE LOOP WOOO LET'S GO
@@ -92,11 +97,11 @@ class Poem:
                     # and move on to the next rhyme group
                     break
 
-                if rhyme_attempts % 50 == 0:
-                    print('\r' + str(rhyme_attempts) )
+                if rhyme_attempts % int(max_tries_per_sent/10) == 0:
+                    #print('\r' + str(rhyme_attempts) )
                     # Fancy animation
-                    #n_animation_dots += 1
-                    #print('\r' + n_animation_dots * '.', end='')
+                    n_animation_dots += 1
+                    print('\r' + n_animation_dots * '.', end='')
                     #if n_animation_dots == 20:
                     #    n_animation_dots = 0
 
@@ -105,10 +110,16 @@ class Poem:
                     print("Tried more than max times, restarting group")
                     # Restart from first sentence in group
                     group[0]['sent'] = self._new_sentence(group[0]['syls'])
+                    while group[0]['sent'] == None:
+                        group[0]['sent'] = self._new_sentence(group[0]['syls'])
                     current = 1
+                    rhyme_attempts = 0
 
                 # Generate next line
                 group[current]['sent'] = self._new_sentence(group[0]['syls'])
+                while group[current]['sent'] == None:
+                    # Keep trying until you get actual sentence
+                    group[current]['sent'] = self._new_sentence(group[0]['syls'])
 
                 # Flexibly check if the line rhymes
                 if is_rhyme_pair(group[0]['sent'], group[current]['sent']):
