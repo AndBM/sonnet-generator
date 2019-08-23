@@ -6,11 +6,12 @@ import string
 import syllabifyARPA as ARPA
 import re
 from multiprocessing import Pool
+import sys # For debugging exit
 
 #Strategy: Create one master sonnet. Then create all 14 other sonnets.
 #TODO: ALlow poem generator to have predefined first and last lines
 #TODO: Allow lines with more than 9 syllables
-#TODO: Parallelize. Strat: Default pool, multiprocessing, map()
+#TODO: Something is off with the parallelisation, implement test case where sentences are given in advance
 #
 # class Crown_generator:
 #     """Generate a crown of sonnets. If the base poem has n lines, there will be
@@ -38,7 +39,7 @@ class Poem:
 
     def __init__(self, pattern='A7A7B7B7', *argv):
         self.config = config.Config()
-        max_rhyme_attempts = self.config.max_rhyme_attempts
+        #max_rhyme_attempts = self.config.max_rhyme_attempts
 
         all_text = ''
         for file in os.listdir(self.config.markovify_input_dir):
@@ -51,9 +52,9 @@ class Poem:
         #self.first_line = argv[0]
         #self.last_line = argv[1]
         # Now pass to the poem
-        self.poem = self.generate_poem(pattern, max_rhyme_attempts)
+        self.poem = self.generate_poem(pattern)
 
-    def generate_poem(self, pattern, max_rhyme_attempts):#, first_line, last_line):
+    def generate_poem(self, pattern):#, first_line, last_line):
         """Generate a poem with a rhyme and syllable pattern as followed in the argument,
         e.g 'ABAB5757'. Upper and lower case letters are differentiated. For lines
         which should not necessarily rhyme, '0' should be passed, e.g. 'AA0BB55755'
@@ -74,76 +75,12 @@ class Poem:
         non_rhymes = [l for l in lines if l['rhyme'] == '0']
         final_lines = []
 
-        #   Define build_group(rhyme, group)
-        #   send group to final lines
-        #   for ind, group in enumerate(pool.imap(build_group,pattern[1:N],pattern[N+1:2*N]))
-        #       final_lines[ind] = group
-
         # Find rhymes for each group. Rhyme is letter (A), group is the object
-        for rhyme, group in zip(line_pairings, line_pairings.values()):
-            print('Looking for rhymes for ' + rhyme + ' group.')
-            # Create first sentence in the group
+        #for rhyme, group in zip(line_pairings, line_pairings.values()):
 
-            group[0]['sent'] = self._new_sentence(group[0]['syls'])
-            while group[0]['sent'] == None:
-                group[0]['sent'] = self._new_sentence(group[0]['syls'])
-            print(group[0]['sent'])
-
-            current = 1
-
-            # Prepare iteration to find rhymes
-            n_lines = len(group)
-            rhyme_attempts = 0
-            max_tries_per_sent = max_rhyme_attempts
-            n_animation_dots = 0  # Just for animation
-
-            # INFINITE LOOP WOOO LET'S GO
-            while True:
-                if current == n_lines:
-                    # If we have all the rhymes needed, pack into poem
-                    final_lines += group
-                    # and move on to the next rhyme group
-                    break
-
-                if rhyme_attempts % int(max_tries_per_sent/10) == 0:
-                    #print('\r' + str(rhyme_attempts) )
-                    # Fancy animation
-                    n_animation_dots += 1
-                    print('\r' + n_animation_dots * '.', end='')
-                    if n_animation_dots == 20:
-                        n_animation_dots = 0
-
-                rhyme_attempts += 1
-                if rhyme_attempts > max_tries_per_sent:
-                    print("\nTried more than max times, restarting group\n")
-                    # Restart from first sentence in group
-                    group[0]['sent'] = self._new_sentence(group[0]['syls'])
-                    while group[0]['sent'] == None:
-                        group[0]['sent'] = self._new_sentence(group[0]['syls'])
-                    print(group[0]['sent'])
-                    current = 1
-                    rhyme_attempts = 0
-
-                # Generate next line
-                group[current]['sent'] = self._new_sentence(group[current]['syls'])
-                while group[current]['sent'] == None:
-                    # Keep trying until you get actual sentence
-                    group[current]['sent'] = self._new_sentence(group[current]['syls'])
-
-                # Flexibly check if the line rhymes
-                if is_rhyme_pair(group[0]['sent'], group[current]['sent']):
-                    print("Rhyme found!")
-                    # Rhyme found! Ensure that it is different from other groups
-                    already_used = False
-                    for prev_sent in final_lines:
-                        if is_rhyme_pair(prev_sent['sent'], group[current]['sent']):
-                            already_used = True
-                            print("Rhyme already used, trying something else.")
-                    if not already_used:
-                        rhyme_attempts = 0
-                        current += 1
-
-            print()  # animation on new line
+        p = Pool()
+        for index, group in enumerate( p.imap( self._build_group, line_pairings.values() )):
+            final_lines[index] = group
 
         # Put whatever on the non-rhyming line
         # TODO: make sure they don't accidentally rhyme with any rhyme pairs
@@ -165,6 +102,75 @@ class Poem:
         print(self.poem)
         print('-' * length)
         print('*' * length)
+
+    def _build_group(self,group):
+        self.config = config.Config()
+        max_rhyme_attempts = self.config.max_rhyme_attempts
+
+        print('Looking for rhymes for ' + group[0]['rhyme'] + ' group.')
+
+        # Create first sentence in the group
+
+        group[0]['sent'] = self._new_sentence(group[0]['syls'])
+        while group[0]['sent'] == None:
+            group[0]['sent'] = self._new_sentence(group[0]['syls'])
+
+        current = 1
+
+        # Prepare iteration to find rhymes
+        n_lines = len(group)
+        rhyme_attempts = 0
+        max_tries_per_sent = max_rhyme_attempts
+        n_animation_dots = 0  # Just for animation
+
+        # INFINITE LOOP WOOO LET'S GO
+        while True:
+            if current == n_lines:
+                # If we have all the rhymes needed, pack into poem
+                #final_lines += group
+                # and move on to the next rhyme group
+                break
+
+            if rhyme_attempts % int(max_tries_per_sent/10) == 0:
+                #print('\r' + str(rhyme_attempts) )
+                # Fancy animation
+                n_animation_dots += 1
+                print('\r' + n_animation_dots * '.', end='')
+                if n_animation_dots == 20:
+                    n_animation_dots = 0
+
+            rhyme_attempts += 1
+            if rhyme_attempts > max_tries_per_sent:
+                print("\nTried more than max times, restarting group\n")
+                # Restart from first sentence in group
+                group[0]['sent'] = self._new_sentence(group[0]['syls'])
+                while group[0]['sent'] == None:
+                    group[0]['sent'] = self._new_sentence(group[0]['syls'])
+                current = 1
+                rhyme_attempts = 0
+
+            # Generate next line
+            group[current]['sent'] = self._new_sentence(group[current]['syls'])
+            while group[current]['sent'] == None:
+                # Keep trying until you get actual sentence
+                group[current]['sent'] = self._new_sentence(group[current]['syls'])
+
+            # Flexibly check if the line rhymes
+            if is_rhyme_pair(group[0]['sent'], group[current]['sent']):
+                print("Rhyme found!")
+                # Rhyme found! Ensure that it is different from other groups
+                already_used = False
+                for prev_sent in final_lines:
+                    if is_rhyme_pair(prev_sent['sent'], group[current]['sent']):
+                        already_used = True
+                        print("Rhyme already used, trying something else.")
+                if not already_used:
+                    rhyme_attempts = 0
+                    current += 1
+
+        print()  # animation on new line
+
+        return group
 
     def _new_sentence2(self,syls):
         syls = int(syls)
@@ -284,7 +290,7 @@ def rhyme_degree(target_word, test_word):
     return degree
 
 
-def is_rhyme_pair(target_line, test_line, same_allowed=False, min_degree=0.7):
+def is_rhyme_pair(target_line, test_line, same_allowed=False, min_degree=0.8):
     """Return true if the passed lines rhyme."""
 
     # avoid later problems from empty or None lines
