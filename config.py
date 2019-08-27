@@ -14,3 +14,4 @@ class Config(object):
         self.poem_second_syl_count = 7
 
         self.max_rhyme_attempts = 30
+        self.is_test = True
