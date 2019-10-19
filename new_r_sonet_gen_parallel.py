@@ -47,8 +47,8 @@ class Sonnet_crown:
         else:
             self.master = prev_master
 
-        print("Master sonnet is")
-        self.master.print_poem()
+        # print("Master sonnet is")
+        # self.master.print_poem()
 
         self.master_lines = self.master.poem.split('\n')
         # master1_lines = ["Shocking as was here last",
