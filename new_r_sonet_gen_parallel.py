@@ -27,8 +27,8 @@ class Sonnet_crown:
         is_test = self.config.is_test
 
         # Generate text model
-        fFile = 'texts/austen.txt'
-        rFile = 'texts/austen_reverse.txt'
+        fFile = 'texts/verne.txt'
+        rFile = 'texts/verne_reverse.txt'
         gr.reverseCorpus(fFile,rFile)
         self.forw_model, self.rev_model = gr.buildModels(fFile, rFile)
 
@@ -47,21 +47,21 @@ class Sonnet_crown:
         else:
             self.master = prev_master
 
-        #print("Master sonnet is")
-        #self.master.print_poem()
+        print("Master sonnet is")
+        self.master.print_poem()
 
-        #self.master_lines = self.master.poem.split('\n')
-        master1_lines = ["Shocking as was here last",
-            "It was such a bother",
-            "While in their way to Kingston",
-            "His demands and your brother"]
+        self.master_lines = self.master.poem.split('\n')
+        # master1_lines = ["Shocking as was here last",
+        #     "It was such a bother",
+        #     "While in their way to Kingston",
+        #     "His demands and your brother"]
+        #
+        # master2_lines = ["His demands and your brother",
+        #     "The news of such a glass",
+        #     "In everything but prudent",
+        #     "He knows who could not pass"]
 
-        master2_lines = ["His demands and your brother",
-            "The news of such a glass",
-            "In everything but prudent",
-            "He knows who could not pass"]
-
-        self.master_lines = master2_lines
+        # self.master_lines = master2_lines
 
     def generate_single_sonnet(self, line):
         """Generate a single sub-sonnet of the master sonnet starting with line
