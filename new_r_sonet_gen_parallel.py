@@ -41,7 +41,7 @@ class Sonnet_crown:
 
         # Generate master sonnet if not given
         print("Generating master sonnet")
-        prev_master = 1
+        prev_master = None
         if prev_master == None:
             self.master = Poem(base_pattern, self.forw_model, self.rev_model)
         else:
@@ -631,6 +631,6 @@ def is_rhyme_pair(target_line, test_line, same_allowed=False, min_degree=0.8):
 #poem.print_poem()
 sonnet_crown = Sonnet_crown('ABCB7676')
 #sonnet_crown.generate_single_sonnet(0)
-#sonnet_crown.generate_full()
-sonnet_crown.subsonnets[1] = sonnet_crown.generate_single_sonnet(1)
+sonnet_crown.generate_full()
+#sonnet_crown.subsonnets[1] = sonnet_crown.generate_single_sonnet(1)
 sonnet_crown.print_full()
